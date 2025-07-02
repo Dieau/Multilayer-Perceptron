@@ -299,7 +299,7 @@ def main_menu():
             sys.exit(0)
         else:
             print(f"{Colors.RED}Invalid choice.{Colors.NC}")
-            input("Press Enter to continue...") # Pause only for invalid choice in main menu
+            input("Press Enter to continue...")
 
 if __name__ == "__main__":
     get_dataset_path()
