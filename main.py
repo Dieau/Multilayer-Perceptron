@@ -436,6 +436,7 @@ def main_menu():
         elif choice == 'h':
             if os.path.exists(LOG_PATH):
                 view_history_phase()
+                pause = True
             else:
                 print(f"{Colors.RED}Invalid choice.{Colors.NC}")
                 time.sleep(1)
