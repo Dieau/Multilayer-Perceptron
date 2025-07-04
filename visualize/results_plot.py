@@ -64,7 +64,6 @@ def plot_prediction_results(history, y_true_labels, y_pred_labels, y_pred_probs)
     """
     print(f"\n{Colors.CYAN}--- Generating Prediction Analysis Report ---{Colors.NC}")
     
-    # --- Create Figure with Subplots ---
     fig = plt.figure(figsize=(20, 6))
     gs = fig.add_gridspec(2, 3, height_ratios=[1, 1])
     

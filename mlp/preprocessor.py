@@ -15,7 +15,6 @@ class Preprocessor:
         """Safely convert data to a numeric format, coercing errors to NaN."""
         if not isinstance(data, pd.DataFrame):
             data = pd.DataFrame(data)
-        # Apply to_numeric to each column, which handles mixed types gracefully
         for col in data.columns:
             data[col] = pd.to_numeric(data[col], errors='coerce')
         return data.values.astype(float)
@@ -24,7 +23,6 @@ class Preprocessor:
         """
         Learns imputation and scaling parameters from the training data.
         """
-        # FIX: Ensure data is purely numeric before processing
         numeric_data = self._coerce_to_numeric(data)
 
         self.imputation_values = np.nanmean(numeric_data, axis=0)
@@ -41,7 +39,6 @@ class Preprocessor:
         if self.imputation_values is None:
             raise RuntimeError("Preprocessor has not been fitted yet.")
 
-        # FIX: Ensure data is purely numeric before processing
         numeric_data = self._coerce_to_numeric(data)
 
         nan_indices = np.where(np.isnan(numeric_data))

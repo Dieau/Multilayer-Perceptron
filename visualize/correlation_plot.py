@@ -17,7 +17,6 @@ def plot_correlation(filepath):
             print(f"{Colors.YELLOW}Not enough numerical features for a correlation plot.{Colors.NC}")
             return
 
-        # Generate generic feature names for the plot axes
         numeric_df.columns = [f'F{i}' for i in range(numeric_df.shape[1])]
         
         print("Calculating correlation matrix...")

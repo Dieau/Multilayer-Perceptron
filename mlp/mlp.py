@@ -2,7 +2,6 @@ import numpy as np
 from .activations import sigmoid, sigmoid_prime, relu, relu_prime, softmax
 from .loss import compute_loss, compute_accuracy
 from .utils import Colors, Scaler
-import time
 import copy
 
 class MLP:

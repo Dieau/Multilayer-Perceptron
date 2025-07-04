@@ -12,7 +12,6 @@ from visualize.pair_plot import plot_pair
 from visualize.correlation_plot import plot_correlation
 from visualize.results_plot import plot_seed_search, plot_prediction_results
 
-# --- Global Configuration State with UPDATED DEFAULTS ---
 CONFIG = {
     "dataset_path": None,
     "split": {
@@ -206,11 +205,9 @@ def train_phase():
     X_full, y_full = load_data(CONFIG["dataset_path"])
     if X_full is None: return
     
-        # Clear previous log file
     if os.path.exists(LOG_PATH):
         os.remove(LOG_PATH)
 
-    # Create temporary split files for this session
     TRAIN_PATH = 'temp_train_data.csv'
     VAL_PATH = 'temp_val_data.csv'
     
@@ -231,12 +228,13 @@ def train_phase():
 
     final_model, final_history = None, None
 
+    # Auto seed mode
     if CONFIG['split']['seed_mode'] == 'auto':
         print(f"{Colors.CYAN}Seed mode is 'auto'. Searching for the best initialization seed...{Colors.NC}")
         best_seed, best_accuracy = -1, 0.0
         seed_search_results = []
         
-        for seed in range(10):
+        for seed in range(15):
             np.random.seed(seed)
             print(f"  - Training with initialization seed {seed}...")
             
@@ -277,7 +275,6 @@ def train_phase():
     else:
         print(f"{Colors.RED}No model was trained successfully.{Colors.NC}")
     
-    # Cleanup temporary files
     cleanup_files([TRAIN_PATH, VAL_PATH])
 
 def predict_phase():
@@ -286,7 +283,6 @@ def predict_phase():
         print(f"{Colors.RED}Model file '{MODEL_PATH}' not found. Please train the model first.{Colors.NC}")
         return
 
-    # Loop until a valid file path is provided
     while True:
         test_path = input("Enter path to the dataset for prediction: ")
         if not os.path.exists(test_path):
@@ -345,7 +341,6 @@ def view_history_phase():
         print(f"{Colors.YELLOW}No training history found in the log file.{Colors.NC}")
         return
 
-    # Create a dictionary for easy lookup
     results_dict = {seed: float(acc) for seed, acc in seed_results}
     best_seed_str = max(results_dict, key=results_dict.get)
     

@@ -7,7 +7,7 @@ def compute_loss(Y_true, Y_pred):
     Y_pred: predicted probabilities from softmax (m, n_classes)
     """
     m = Y_true.shape[1]
-    # Add a small epsilon to avoid log(0)
+    # Small epsilon to avoid log(0)
     loss = -np.sum(Y_true * np.log(Y_pred + 1e-8)) / m
     return loss
 

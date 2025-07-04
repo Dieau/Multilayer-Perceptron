@@ -11,16 +11,12 @@ def plot_pair(filepath):
     try:
         df = pd.read_csv(filepath, header=None)
         
-        # Assign meaningful names for plotting
-        # Original columns: 0:ID, 1:Diagnosis, 2:radius_mean, 3:texture_mean, etc.
-        # We'll use a subset of the most important features for clarity.
         column_names = [
             'ID', 'Diagnosis', 'radius_mean', 'texture_mean', 'perimeter_mean', 
             'area_mean', 'smoothness_mean', 'compactness_mean', 'concavity_mean'
         ]
         
-        # Select a subset of columns for the pair plot
-        subset_cols_indices = [1, 2, 3, 6, 7] # Diagnosis, radius, texture, smoothness, compactness
+        subset_cols_indices = [1, 2, 3, 6, 7]
         subset_cols_names = [column_names[i] for i in subset_cols_indices]
         
         plot_df = df[subset_cols_indices]

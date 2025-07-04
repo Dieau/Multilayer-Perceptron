@@ -8,7 +8,7 @@ def describe(filepath):
     """
     print(f"{Colors.BLUE}--- Describing Dataset: {filepath} ---{Colors.NC}")
     try:
-        # These are the standard names for the 30 features in the WBCD dataset
+        # 30 features in the WBCD dataset
         feature_names = [
             'radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean',
             'compactness_mean', 'concavity_mean', 'concave points_mean', 'symmetry_mean',
@@ -21,7 +21,6 @@ def describe(filepath):
         
         df = pd.read_csv(filepath, header=None)
         
-        # Select only the 30 feature columns
         if df.shape[1] == 32: # Original data.csv with ID
             numeric_df = df.iloc[:, 2:]
         elif df.shape[1] == 31: # Split file without ID
@@ -40,7 +39,6 @@ def describe(filepath):
         }
         description = pd.DataFrame(stats)
         
-        # --- Grouped and Formatted Output ---
         groups = {
             "Mean Features": [name for name in feature_names if 'mean' in name],
             "Standard Error (SE) Features": [name for name in feature_names if 'se' in name],
@@ -50,7 +48,6 @@ def describe(filepath):
         for group_title, group_features in groups.items():
             print(f"\n{Colors.CYAN}--- {group_title} ---{Colors.NC}")
             
-            # Filter the description dataframe for the current group
             group_df = description.loc[group_features]
 
             # Header
@@ -60,7 +57,6 @@ def describe(filepath):
 
             # Rows
             for feature, row in group_df.iterrows():
-                # Format each value to have 6 decimal places and be centered in a 15-char space
                 row_str = f"{feature:<28}" + "".join([f"{val:^15.6f}" for val in row])
                 print(row_str)
 
