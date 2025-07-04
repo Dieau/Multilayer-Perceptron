@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mlp"
+version = "1.0.0"
+authors = [
+    {name = "Adel Lakhdar", email = "adel.lakhdar@student.42.fr"}
+]
+description = "A Multilayer Perceptron classifier using One-Vs-All Logistic Regression."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "seaborn"
+]
+
+[project.optional-dependencies]
+dev = []
+
+[tool.setuptools]
+packages = ["mlp", "visualize"]

@@ -162,7 +162,7 @@ def train_phase():
         best_seed, best_accuracy = -1, 0.0
         seed_search_results = []
         
-        for seed in range(10):
+        for seed in range(15):
             np.random.seed(seed)
             print(f"  - Training with initialization seed {seed}...")
             
@@ -283,7 +283,6 @@ def main_menu():
         print("q - Quit")
         choice = input("Enter your choice: ").lower()
 
-        # FIX: Remove the blanket "Press Enter" and handle pausing on a case-by-case basis
         if choice == 'c':
             configure_parameters_menu()
         elif choice == 't':

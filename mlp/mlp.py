@@ -111,7 +111,7 @@ class MLP:
                 
                 if patience > 0 and epochs_no_improve >= patience:
                     if verbose:
-                        print(log_msg) # Print the final log before stopping
+                        print(log_msg)
                         print(f"\n{Colors.YELLOW}--- Early Stopping Triggered ---{Colors.NC}")
                         print(f"Validation loss has not improved for {patience} epochs.")
                         print(f"Restoring model to best weights from epoch {Colors.BOLD}{best_epoch}{Colors.NC} (val_loss: {best_val_loss:.4f}).")
@@ -140,7 +140,7 @@ class MLP:
         model_data = {
             'params': self.params, 'layer_dims': self.layer_dims, 
             'activations': self.activations[:-1],
-            'preprocessor': preprocessor, # Save the entire preprocessor object
+            'preprocessor': preprocessor,
             'history': history
         }
         np.savez(path, **model_data)
