@@ -11,6 +11,7 @@ class Colors:
     BOLD = '\033[1m'
     NC = '\033[0m'
     CYAN = '\033[96m'
+    MAGENTA = '\033[95m'
 
 class Scaler:
     def __init__(self):

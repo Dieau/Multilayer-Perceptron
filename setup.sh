@@ -21,7 +21,7 @@ clean_project() {
     rm -rf .venv
 
     echo "🗑️  Removing generated model and prediction files..."
-    rm -rf saved_models predictions.csv
+    rm -rf saved_models predictions.csv training_log.txt
 
     echo "🗑️  Removing build files (egg-info, build, dist)..."
     rm -rf build dist mlp.egg-info

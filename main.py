@@ -1,3 +1,5 @@
+import re
+import time
 import pandas as pd
 import numpy as np
 import os
@@ -29,6 +31,7 @@ CONFIG = {
 }
 MODEL_PATH = 'saved_models/mlp_model.npz'
 PRED_PATH = 'predictions.csv'
+LOG_PATH = 'training_log.txt'
 
 def cleanup_files(files_to_remove):
     """Removes a list of temporary files."""
@@ -58,16 +61,67 @@ def clear_screen():
 ██      ███████ ██   ██  ██████ ███████ ██         ██    ██   ██  ██████  ██   ████ 
 """)
 
+def validate_csv_file(path):
+    """
+    Validates that a file is a properly formatted CSV for the ML pipeline.
+    Returns (is_valid, error_message, sample_count, feature_count)
+    """
+    try:
+        # Check file extension
+        if not path.lower().endswith('.csv'):
+            return False, "File must have a .csv extension.", 0, 0
+            
+        # Try to load and validate the data structure
+        df = pd.read_csv(path, header=None)
+        
+        # Check if we have enough columns (should be 31 or 32)
+        if df.shape[1] < 31:
+            return False, f"CSV file must have at least 31 columns. Found {df.shape[1]} columns.", 0, 0
+            
+        # If 32 columns, drop the first (ID column)
+        if df.shape[1] == 32:
+            df = df.drop(columns=[0])
+        
+        # Check if first column contains valid labels ('M' or 'B')
+        y_categorical = df.iloc[:, 0]
+        valid_labels = set(['M', 'B'])
+        unique_labels = set(y_categorical.dropna().unique())
+        
+        if not unique_labels.issubset(valid_labels):
+            return False, f"First column must contain only 'M' and 'B' labels. Found: {unique_labels}", 0, 0
+            
+        # Check if we have any data rows
+        if df.shape[0] == 0:
+            return False, "CSV file is empty.", 0, 0
+            
+        return True, "", df.shape[0], df.shape[1]-1
+        
+    except pd.errors.ParserError as e:
+        return False, f"Invalid CSV format. {e}", 0, 0
+    except Exception as e:
+        return False, f"Error reading CSV file: {e}", 0, 0
+
 def get_dataset_path():
     while True:
         clear_screen()
         path = input("Please enter the path to the dataset CSV file to be used for training: ")
-        if os.path.exists(path):
-            CONFIG["dataset_path"] = path
-            return
-        else:
+        if not os.path.exists(path):
             print(f"{Colors.RED}File not found at '{path}'. Please try again.{Colors.NC}")
             input("Press Enter to continue...")
+            continue
+            
+        # Validate that it's a proper CSV file
+        is_valid, error_msg, sample_count, feature_count = validate_csv_file(path)
+        
+        if not is_valid:
+            print(f"{Colors.RED}Error: {error_msg}{Colors.NC}")
+            input("Press Enter to continue...")
+            continue
+            
+        print(f"{Colors.GREEN}✓ Valid CSV file detected with {sample_count} samples and {feature_count} features.{Colors.NC}")
+        CONFIG["dataset_path"] = path
+        input("Press Enter to continue...")
+        return
 
 def configure_parameters_menu():
     while True:
@@ -86,7 +140,7 @@ def configure_parameters_menu():
         print(f"8. Seed Mode: {Colors.YELLOW}{CONFIG['split']['seed_mode']}{Colors.NC}")
         if CONFIG['split']['seed_mode'] == 'manual':
             print(f"   - Manual Seed: {Colors.YELLOW}{CONFIG['split']['manual_seed']}{Colors.NC}")
-        print("m. Back to Main Menu")
+        print(f"m. {Colors.RED}Back to Main Menu{Colors.NC}")
         
         choice = input("Enter your choice: ").lower()
         try:
@@ -103,7 +157,7 @@ def configure_parameters_menu():
             elif choice == '6':
                 if not CONFIG['model']['architecture']:
                     print(f"{Colors.RED}Please set architecture first.{Colors.NC}")
-                    input("Press Enter to continue...")
+                    time.sleep(1)
                 else:
                     new_activations = []
                     for i, size in enumerate(CONFIG['model']['architecture']):
@@ -126,20 +180,40 @@ def configure_parameters_menu():
             elif choice == 'm': return
             else:
                 print(f"{Colors.RED}Invalid choice.{Colors.NC}")
-                input("Press Enter to continue...")
+                time.sleep(1)
         except (ValueError, IndexError):
             print(f"{Colors.RED}Invalid input.{Colors.NC}")
-            input("Press Enter to continue...")
+            time.sleep(1)
+            
+def log_training_history(seed, history, log_file, final_accuracy):
+    """Appends the detailed epoch-by-epoch history and final accuracy to a log file."""
+    with open(log_file, 'a') as f:
+        f.write(f"\n{'='*20} Seed {seed} Training History {'='*20}\n")
+        for i in range(len(history['train_loss'])):
+            epoch = i + 1
+            train_loss = history['train_loss'][i]
+            train_acc = history['train_acc'][i]
+            val_loss = history['val_loss'][i]
+            val_acc = history['val_acc'][i]
+            log_line = (f"Epoch {epoch:03d}/{len(history['train_loss']):03d} - "
+                        f"loss: {train_loss:.4f} - acc: {train_acc:.4f} - "
+                        f"val_loss: {val_loss:.4f} - val_acc: {val_acc:.4f}\n")
+            f.write(log_line)
+        f.write(f"--- Seed {seed} final validation accuracy: {final_accuracy*100:.2f}%\n")
 
 def train_phase():
     print(f"\n{Colors.BLUE}--- Starting Training Process ---{Colors.NC}")
     X_full, y_full = load_data(CONFIG["dataset_path"])
     if X_full is None: return
     
+        # Clear previous log file
+    if os.path.exists(LOG_PATH):
+        os.remove(LOG_PATH)
+
     # Create temporary split files for this session
     TRAIN_PATH = 'temp_train_data.csv'
     VAL_PATH = 'temp_val_data.csv'
-
+    
     print(f"{Colors.CYAN}Splitting data into a definitive Train/Validation set...{Colors.NC}")
     np.random.seed(42)
     shuffled_indices = np.random.permutation(len(X_full))
@@ -162,16 +236,17 @@ def train_phase():
         best_seed, best_accuracy = -1, 0.0
         seed_search_results = []
         
-        for seed in range(15):
+        for seed in range(10):
             np.random.seed(seed)
             print(f"  - Training with initialization seed {seed}...")
             
             model = MLP([X_train.shape[0]] + CONFIG['model']['architecture'] + [2], CONFIG['model']['activations'])
             history = model.fit(X_train, y_train, X_val, y_val, epochs=CONFIG['model']['epochs'], 
                                 learning_rate=CONFIG['model']['lr'], batch_size=CONFIG['model']['batch_size'],
-                                patience=CONFIG['model']['patience'], verbose=True)
+                                patience=CONFIG['model']['patience'], verbose=False)
             
             _, val_acc = model.evaluate(X_val, y_val)
+            log_training_history(seed, history, LOG_PATH, val_acc)
             seed_search_results.append({'seed': seed, 'accuracy': val_acc, 'history': history})
             print(f"    - Seed {seed} final validation accuracy: {Colors.YELLOW}{val_acc*100:.2f}%{Colors.NC}")
 
@@ -181,8 +256,11 @@ def train_phase():
                 final_history = history
         
         print(f"\n{Colors.GREEN}Best initialization seed found: {best_seed} with validation accuracy {best_accuracy*100:.2f}%{Colors.NC}")
+        print(f"Detailed training logs for all seeds have been saved to {Colors.GREEN}{LOG_PATH}{Colors.NC}")
         plot_seed_search(seed_search_results)
+
     else:
+        # Manual seed mode
         final_seed = CONFIG['split']['manual_seed']
         print(f"\n{Colors.CYAN}Manual seed mode. Training with initialization seed {final_seed}.{Colors.NC}")
         np.random.seed(final_seed)
@@ -190,7 +268,7 @@ def train_phase():
         final_model = MLP(layer_dims, CONFIG['model']['activations'])
         final_history = final_model.fit(X_train, y_train, X_val, y_val, epochs=CONFIG['model']['epochs'], 
                                       learning_rate=CONFIG['model']['lr'], batch_size=CONFIG['model']['batch_size'],
-                                      patience=CONFIG['model']['patience'])
+                                      patience=CONFIG['model']['patience'], verbose=True)
 
     if final_model:
         if not os.path.exists('saved_models'): os.makedirs('saved_models')
@@ -208,15 +286,22 @@ def predict_phase():
         print(f"{Colors.RED}Model file '{MODEL_PATH}' not found. Please train the model first.{Colors.NC}")
         return
 
-    # FIX: Loop until a valid file path is provided
+    # Loop until a valid file path is provided
     while True:
         test_path = input("Enter path to the dataset for prediction: ")
-        if os.path.exists(test_path):
-            break
-        else:
-            print(f"{Colors.RED}File not found. Aborting.{Colors.NC}")
-            # Immediately ask again
+        if not os.path.exists(test_path):
             print(f"{Colors.RED}File not found at '{test_path}'. Please try again.{Colors.NC}")
+            continue
+            
+        # Validate that it's a proper CSV file
+        is_valid, error_msg, sample_count, feature_count = validate_csv_file(test_path)
+        
+        if not is_valid:
+            print(f"{Colors.RED}Error: {error_msg}{Colors.NC}")
+            continue
+            
+        print(f"{Colors.GREEN}✓ Valid CSV file detected with {sample_count} samples and {feature_count} features.{Colors.NC}")
+        break
 
     model, preprocessor, history = MLP.load_model(MODEL_PATH)
     
@@ -243,15 +328,76 @@ def predict_phase():
     plot_prediction_results(history, y_true_labels, y_pred_labels, y_pred_probs)
     
     cleanup_files([PRED_PATH])
+    
+def view_history_phase():
+    """Parses and displays the training history from the log file."""
+    clear_screen()
+    print(f"\n{Colors.BLUE}--- Training History Viewer ---{Colors.NC}")
+    if not os.path.exists(LOG_PATH):
+        print(f"{Colors.RED}Log file '{LOG_PATH}' not found. Please train a model first.{Colors.NC}")
+        return
+
+    with open(LOG_PATH, 'r') as f:
+        content = f.read()
+
+    seed_results = re.findall(r"--- Seed (\d+) final validation accuracy: ([\d.]+)%", content)
+    if not seed_results:
+        print(f"{Colors.YELLOW}No training history found in the log file.{Colors.NC}")
+        return
+
+    # Create a dictionary for easy lookup
+    results_dict = {seed: float(acc) for seed, acc in seed_results}
+    best_seed_str = max(results_dict, key=results_dict.get)
+    
+    other_seeds = sorted([s for s in results_dict.keys() if s != best_seed_str], key=int)
+
+    while True:
+        print("\nSelect a seed to view its detailed training log:")
+        print(f"{Colors.GREEN}--- Best Seed ---{Colors.NC}")
+        print(f"  - '{Colors.YELLOW}{best_seed_str}{Colors.NC}': Seed {best_seed_str} ({results_dict[best_seed_str]:.2f}% accuracy)")
+        
+        if other_seeds:
+            print(f"\n{Colors.CYAN}--- Other Seeds ---{Colors.NC}")
+            for seed in other_seeds:
+                print(f"  - '{Colors.YELLOW}{seed}{Colors.NC}': Seed {seed} ({results_dict[seed]:.2f}% accuracy)")
+        
+        print(f"\n  - Enter '{Colors.YELLOW}all{Colors.NC}' to view all histories")
+        print(f"  - Enter '{Colors.YELLOW}m{Colors.NC}' to return to the main menu")
+        
+        choice = input("Enter your choice: ").lower()
+
+        if choice == 'm':
+            return
+        
+        if choice == 'all':
+            clear_screen()
+            print(content)
+            break
+        elif choice in results_dict:
+            clear_screen()
+            history_block = re.search(f"====== Seed {choice} Training History ======(.*?)(?=\n--- Seed|$)", content, re.DOTALL)
+            if history_block:
+                print(f"{Colors.BOLD}{Colors.CYAN}====== Seed {choice} Training History ======{Colors.NC}")
+                for line in history_block.group(1).strip().split('\n'):
+                    colored_line = re.sub(r"(Epoch \d+/\d+)", f"{Colors.BOLD}\\1{Colors.NC}", line)
+                    colored_line = re.sub(r"(loss: )([\d.]+)", f"\\1{Colors.GREEN}\\2{Colors.NC}", colored_line)
+                    colored_line = re.sub(r"(acc: )([\d.]+)", f"\\1{Colors.GREEN}\\2{Colors.NC}", colored_line)
+                    colored_line = re.sub(r"(val_loss: )([\d.]+)", f"\\1{Colors.YELLOW}\\2{Colors.NC}", colored_line)
+                    colored_line = re.sub(r"(val_acc: )([\d.]+)", f"\\1{Colors.YELLOW}\\2{Colors.NC}", colored_line)
+                    print(colored_line)
+            break
+        else:
+            print(f"{Colors.RED}Invalid seed number. Please try again.{Colors.NC}")
+            time.sleep(1)
 
 def visualize_menu():
     while True:
         clear_screen()
         print(f"{Colors.BOLD}Visualize Menu{Colors.NC}")
-        print("d - Describe dataset")
-        print("p - Draw pair plot of key features")
-        print("c - Draw correlation heatmap")
-        print("m - Back to main menu")
+        print(f"d - {Colors.CYAN}Describe dataset{Colors.NC}")
+        print(f"p - {Colors.CYAN}Draw pair plot of key features{Colors.NC}")
+        print(f"c - {Colors.CYAN}Draw correlation heatmap{Colors.NC}")
+        print(f"m - {Colors.RED}Back to main menu{Colors.NC}")
         choice = input("Enter your choice: ").lower()
 
         if choice == 'd':
@@ -260,14 +406,13 @@ def visualize_menu():
             input("\nPress Enter to continue...")
         elif choice == 'p':
             plot_pair(CONFIG["dataset_path"])
-            input("\nPress Enter to continue...")
         elif choice == 'c':
             plot_correlation(CONFIG["dataset_path"])
-            input("\nPress Enter to continue...")
         elif choice == 'm':
-            return # Return to main menu without pausing
+            return
         else:
             print(f"{Colors.RED}Invalid choice.{Colors.NC}")
+            time.sleep(1)
 
 def main_menu():
     """The main interactive menu of the application."""
@@ -276,21 +421,32 @@ def main_menu():
         print(f"{Colors.BOLD}Multilayer Perceptron Project{Colors.NC}")
         print(f"Current Training Dataset: {Colors.YELLOW}{CONFIG['dataset_path']}{Colors.NC}")
         print("-" * 40)
-        print("c - Configure Parameters")
-        print("t - Train the model")
-        print("p - Predict and evaluate")
-        print("v - Visualize dataset")
-        print("q - Quit")
+        print(f"c - {Colors.YELLOW}Configure Parameters{Colors.NC}")
+        print(f"t - {Colors.GREEN}Train the model{Colors.NC}")
+        
+        if os.path.exists(LOG_PATH):
+            print(f"h - {Colors.GREEN}See training history{Colors.NC}")
+
+        print(f"p - {Colors.BLUE}Predict and evaluate{Colors.NC}")
+        print(f"v - {Colors.MAGENTA}Visualize dataset{Colors.NC}")
+        print(f"q - {Colors.RED}Quit{Colors.NC}")
         choice = input("Enter your choice: ").lower()
 
+        pause = False
         if choice == 'c':
             configure_parameters_menu()
         elif choice == 't':
             train_phase()
-            input("\nPress Enter to continue...")
+            pause = True
+        elif choice == 'h':
+            if os.path.exists(LOG_PATH):
+                view_history_phase()
+            else:
+                print(f"{Colors.RED}Invalid choice.{Colors.NC}")
+                time.sleep(1)
         elif choice == 'p':
             predict_phase()
-            input("\nPress Enter to continue...")
+            pause = True
         elif choice == 'v':
             visualize_menu()
         elif choice == 'q':
@@ -298,7 +454,10 @@ def main_menu():
             sys.exit(0)
         else:
             print(f"{Colors.RED}Invalid choice.{Colors.NC}")
-            input("Press Enter to continue...")
+            time.sleep(1)
+        
+        if pause:
+            input("\nPress Enter to continue...")
 
 if __name__ == "__main__":
     get_dataset_path()
