@@ -1,4 +1,4 @@
-# Multilayer Perceptron (MLP) - Binary Classification with Neural Networks
+# Multilayer Perceptron - Binary Classification with Neural Networks
 
 ## Project Overview
 
