@@ -90,6 +90,7 @@ The implementation operates under specific constraints to ensure educational val
    - [Training Curves](#training-curves)
    - [Seed Search Analysis](#seed-search-analysis)
    - [Data Visualization Tools](#data-visualization-tools)
+7. [Resources and Documentation](#resources-and-documentation)
 
 ## Setup and Installation
 
