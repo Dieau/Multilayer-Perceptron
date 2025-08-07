@@ -233,10 +233,13 @@ def train_phase():
 
     if CONFIG['split']['seed_mode'] == 'auto':
         print(f"{Colors.CYAN}Seed mode is 'auto'. Searching for the best initialization seed...{Colors.NC}")
+        print(f"{Colors.CYAN}Target accuracy: 99.00% (will search up to 25 seeds if needed){Colors.NC}")
         best_seed, best_accuracy = -1, 0.0
         seed_search_results = []
+        target_accuracy = 0.99
+        max_seeds = 25
         
-        for seed in range(10):
+        for seed in range(max_seeds):
             np.random.seed(seed)
             print(f"  - Training with initialization seed {seed}...")
             
@@ -254,8 +257,17 @@ def train_phase():
                 best_accuracy, best_seed = val_acc, seed
                 final_model = model
                 final_history = history
+            
+            # Stop early if we found a satisfying accuracy
+            if val_acc >= target_accuracy:
+                print(f"    {Colors.GREEN}✓ Found satisfying accuracy ({val_acc*100:.2f}% >= {target_accuracy*100:.2f}%)!{Colors.NC}")
+                break
         
-        print(f"\n{Colors.GREEN}Best initialization seed found: {best_seed} with validation accuracy {best_accuracy*100:.2f}%{Colors.NC}")
+        if best_accuracy >= target_accuracy:
+            print(f"\n{Colors.GREEN}Best initialization seed found: {best_seed} with validation accuracy {best_accuracy*100:.2f}%{Colors.NC}")
+        else:
+            print(f"\n{Colors.YELLOW}Best initialization seed found: {best_seed} with validation accuracy {best_accuracy*100:.2f}%{Colors.NC}")
+            print(f"{Colors.YELLOW}Note: Target accuracy of {target_accuracy*100:.2f}% was not reached in {max_seeds} seeds.{Colors.NC}")
         print(f"Detailed training logs for all seeds have been saved to {Colors.GREEN}{LOG_PATH}{Colors.NC}")
         plot_seed_search(seed_search_results)
 
@@ -350,16 +362,37 @@ def view_history_phase():
     best_seed_str = max(results_dict, key=results_dict.get)
     
     other_seeds = sorted([s for s in results_dict.keys() if s != best_seed_str], key=int)
+    
+    # Pagination settings
+    seeds_per_page = 9
+    current_page = 0
 
     while True:
+        clear_screen()
+        print(f"\n{Colors.BLUE}--- Training History Viewer ---{Colors.NC}")
         print("\nSelect a seed to view its detailed training log:")
         print(f"{Colors.GREEN}--- Best Seed ---{Colors.NC}")
         print(f"  - '{Colors.YELLOW}{best_seed_str}{Colors.NC}': Seed {best_seed_str} ({results_dict[best_seed_str]:.2f}% accuracy)")
         
         if other_seeds:
             print(f"\n{Colors.CYAN}--- Other Seeds ---{Colors.NC}")
-            for seed in other_seeds:
+            
+            # Calculate pagination
+            start_idx = current_page * seeds_per_page
+            end_idx = min(start_idx + seeds_per_page, len(other_seeds))
+            page_seeds = other_seeds[start_idx:end_idx]
+            
+            for seed in page_seeds:
                 print(f"  - '{Colors.YELLOW}{seed}{Colors.NC}': Seed {seed} ({results_dict[seed]:.2f}% accuracy)")
+            
+            # Show pagination info if there are more seeds
+            total_pages = (len(other_seeds) + seeds_per_page - 1) // seeds_per_page
+            if total_pages > 1:
+                print(f"\n{Colors.MAGENTA}Page {current_page + 1}/{total_pages}{Colors.NC}")
+                if end_idx < len(other_seeds):
+                    print(f"  - Enter '{Colors.YELLOW}n{Colors.NC}' for next page")
+                if current_page > 0:
+                    print(f"  - Enter '{Colors.YELLOW}p{Colors.NC}' for previous page")
         
         print(f"\n  - Enter '{Colors.YELLOW}all{Colors.NC}' to view all histories")
         print(f"  - Enter '{Colors.YELLOW}m{Colors.NC}' to return to the main menu")
@@ -368,11 +401,14 @@ def view_history_phase():
 
         if choice == 'm':
             return
-        
-        if choice == 'all':
+        elif choice == 'n' and end_idx < len(other_seeds):
+            current_page += 1
+        elif choice == 'p' and current_page > 0:
+            current_page -= 1
+        elif choice == 'all':
             clear_screen()
             print(content)
-            break
+            input("\nPress Enter to continue...")
         elif choice in results_dict:
             clear_screen()
             history_block = re.search(f"====== Seed {choice} Training History ======(.*?)(?=\n--- Seed|$)", content, re.DOTALL)
@@ -385,9 +421,9 @@ def view_history_phase():
                     colored_line = re.sub(r"(val_loss: )([\d.]+)", f"\\1{Colors.YELLOW}\\2{Colors.NC}", colored_line)
                     colored_line = re.sub(r"(val_acc: )([\d.]+)", f"\\1{Colors.YELLOW}\\2{Colors.NC}", colored_line)
                     print(colored_line)
-            break
+            input("\nPress Enter to continue...")
         else:
-            print(f"{Colors.RED}Invalid seed number. Please try again.{Colors.NC}")
+            print(f"{Colors.RED}Invalid choice.{Colors.NC}")
             time.sleep(1)
 
 def visualize_menu():

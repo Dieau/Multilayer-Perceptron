@@ -29,11 +29,17 @@ def plot_seed_search(results):
     axs[0].legend()
 
     # 2. Loss curves for all seeds
+    # Plot non-best seeds first (lighter, in background)
     for result in results:
-        style = 'r-' if result['seed'] == best_result['seed'] else 'gray'
-        alpha = 1.0 if result['seed'] == best_result['seed'] else 0.4
-        label = f"Best (Seed {result['seed']})" if result['seed'] == best_result['seed'] else None
-        axs[1].plot(result['history']['val_loss'], style, alpha=alpha, label=label)
+        if result['seed'] != best_result['seed']:
+            axs[1].plot(result['history']['val_loss'], color='lightgray', alpha=0.8, linewidth=0.8)
+    
+    # Plot best seed last (on top, prominent)
+    for result in results:
+        if result['seed'] == best_result['seed']:
+            axs[1].plot(result['history']['val_loss'], 'r-', linewidth=1.5, 
+                       label=f"Best (Seed {result['seed']})")
+    
     axs[1].set_title('Validation Loss Curves per Seed')
     axs[1].set_xlabel('Epochs')
     axs[1].set_ylabel('Loss')
@@ -41,11 +47,17 @@ def plot_seed_search(results):
     if any(r['seed'] == best_result['seed'] for r in results): axs[1].legend()
 
     # 3. Accuracy curves for all seeds
+    # Plot non-best seeds first (lighter, in background)
     for result in results:
-        style = 'r-' if result['seed'] == best_result['seed'] else 'gray'
-        alpha = 1.0 if result['seed'] == best_result['seed'] else 0.4
-        label = f"Best (Seed {result['seed']})" if result['seed'] == best_result['seed'] else None
-        axs[2].plot(result['history']['val_acc'], style, alpha=alpha, label=label)
+        if result['seed'] != best_result['seed']:
+            axs[2].plot(result['history']['val_acc'], color='lightgray', alpha=0.8, linewidth=0.8)
+    
+    # Plot best seed last (on top, prominent)
+    for result in results:
+        if result['seed'] == best_result['seed']:
+            axs[2].plot(result['history']['val_acc'], 'r-', linewidth=1.5, 
+                       label=f"Best (Seed {result['seed']})")
+    
     axs[2].set_title('Validation Accuracy Curves per Seed')
     axs[2].set_xlabel('Epochs')
     axs[2].set_ylabel('Accuracy')

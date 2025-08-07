@@ -90,7 +90,7 @@ fi
 
 echo -e "\n${GREEN}🎉 Setup complete! The virtual environment is ready and active.${NC}\n"
 echo "You can now run the main application:"
-echo -e "   ${YELLOW}python3 main.py${NC}"
+echo -e "   ${YELLOW}python3 MultiLayerPerceptron.py${NC}"
 echo ""
 echo "To activate the virtual environment, run:"
 echo -e "  ${YELLOW}source $ACTIVATE_SCRIPT${NC}"
