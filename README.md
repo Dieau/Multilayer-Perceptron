@@ -17,7 +17,7 @@ A **Multilayer Perceptron (MLP)** is a type of artificial neural network that co
 - **Backpropagation algorithm** for learning optimal weights
 - **Gradient descent optimization** for parameter updates
 
-### Key Concepts Utilized
+### Key Concepts
 
 The project implements and demonstrates several fundamental machine learning and neural network concepts:
 
